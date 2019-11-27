@@ -1,6 +1,6 @@
 //
 //  basic.c
-//  
+//
 //
 //  Created by 강수진 on 2019/10/29.
 //  Modified by Euncho Bae on 2019/11/25.
@@ -20,16 +20,23 @@
 //------------------proc------------------//
 #define PROC_DIRNAME "myproc_dir"
 #define PROC_FILENAME "myproc_file"
+#define BUFF_LEN 4
 
 static struct proc_dir_entry *proc_dir;
 static struct proc_dir_entry *proc_file;
 
-static unsigned short inputPort = NULL;
+static unsigned short inputPort = 0;
 
 static ssize_t custom_write(struct file *file, const char __user *user_buffer, size_t count, loff_t *ppos) {
     printk(KERN_ALERT "write!\n");
-    inputPort = user_buffer;
-    if(inputPort == NULL) {
+    char my_buffer[BUFF_LEN];
+    //유저 프로세스 공간으로 부터 커널로 데이터 복사
+    if(copy_from_user(my_buffer, user_buffer, BUFF_LEN)) {
+        printk("something happend wrong with copy\n");
+    }
+    //Convert char array to a specific type - 우리의 경우에는 %u로
+    sscanf(my_buffer, "%u", &inputPort);
+    if(inputPort == 0) {
         printk(KERN_ALERT "fail to assign inputPort!\n");
         return 0;
     }
@@ -142,7 +149,8 @@ static int __init my_module_init(void) {
 static void __exit my_module_exit(void) {
     printk(KERN_ALERT "module down...\n");
     //proc
-    remove_proc_entry();
+    remove_proc_entry(PROC_FILENAME, proc_dir);
+    remove_proc_entry(PROC_DIRNAME, NULL);
     // unregister from hooking point
     nf_unregister_hook(&my_nf_ops_pre);
     nf_unregister_hook(&my_nf_ops_forward);
